@@ -60,3 +60,22 @@ To insert another template inside the current template it is necessary to use th
 or
 
 	<% include('header.ejs') %>
+## Client-side
+On the client-side simpleT can be used with `utils/simplet.js` file inside the module folder. The only difference from the server-side version is that instead of files HTML elements are used and their id should be provided. Example:
+
+	<script src="../utils/simplet.js"></script>
+	<script id="include" type="text/simplet">
+		<%= add + 1 %><br>
+	</script>
+	<script id="template" type="text/simplet">
+		1<br>
+		<%# 'include', {add: 1} %>
+		<% print(3) %>
+	</script>
+	<script>
+		window.onload = function () {
+			var engine = simplet({});
+			document.getElementById('result').innerHTML = engine.render('template', {});
+		}
+		// 'result' is the id of an HTML element in which will be added the  result content of the template
+	</script>

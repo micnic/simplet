@@ -1,9 +1,10 @@
-# simpleT 0.0.1
+# simpleT 0.0.3
 
-simpleS is a simple template engine for node.js that has some special features:
+simpleT is a simple template engine for node.js that has some special features:
 
 - Simple structure with minimum configuration
 - Embedded JavaScript support
+- Client-side support
 - High performance
 - Global values injection
 - Caching
@@ -12,6 +13,11 @@ simpleS is a simple template engine for node.js that has some special features:
 Tested with node.js 0.8+
 
 *THIS DESCRIPTION IS NOT COMPLETE, MORE CONTENT WILL BE ADDED*
+
+### [Documentation](https://github.com/micnic/simpleT/wiki/Documentation "simpleS Documentation")
+
+#### More simple modules
+[simpleS](http://micnic.github.com/simpleS/)
 
 ## Instalation
 
