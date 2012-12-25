@@ -1,113 +1,107 @@
 var fs = require('fs');
 var path = require('path');
 
+// Parses the content and returns executable result
 function parse(content, open, close) {
 	'use strict';
+	var include = false;
 	var print = false;
 	var result = '';
-	var start = 0;
 
-	// Start parsing the template
-	if (content.slice(0, 2) !== open) {
-		result = 'print(\'';
-		print = true;
+	var index = 0;
+	var currentChar;
+	var currentSec;
+
+	var beforeCode = true;
+	var afterCode = false;
+	var firstCode = false;
+	var buffer = '';
+
+	if (content.substr(0, 2) === open) {
+		firstCode = true;
 	}
 
-	// Parse the template char by char
-	for (var i = 0, n = content.length; i < n; i++) {
-		if (content.slice(i, i + 2) === open) {
-			if (start !== i) {
+	while (currentChar = content.charAt(index)) {
+		if (content.substr(index, 2) === open) {
+			index += 2;
+			currentChar = content.charAt(index);
+			if (currentChar === '=') {
 				if (print) {
-					if (start !== 0) {
-						result += ',\'';
-					}
+					result += ',';
 				} else {
-					result += 'print(\'';
+					result += 'print(';
+					print = true;
 				}
-				result += content.slice(start, i) + '\'';
+				index++;
+			} else if (currentChar === '#') {
+				if (print) {
+					result += ');';
+					print = false;
+				}
+				result += 'include(';
+				include = true;
+				index++;
+			} else if (print) {
+				result += ');';
+				print = false;
+			}
+			while ((currentChar = content.charAt(index)) && content.substr(index, 2) !== close) {
+				result += currentChar;
+				index++;
+			}
+			if (!currentChar) {
+				throw 'Unexpected end of template';
+			} else if (!print) {
+				if (include) {
+					result += ')';
+					include = false;
+				}
+				result += ';';
+			}
+			index += 2;
+			afterCode = true;
+		} else if (currentChar) {
+			if (print) {
+				result += ',\'';
+			} else {
+				result += 'print(\'';
 				print = true;
 			}
-			i += 2;
-			var index = content.indexOf(close, i);
-			if (index === -1) {
-				console.log('\nsimpleT: unexpected end of template "' + source + '"\n');
-				return;
-			}
-			switch (content[i]) {
-
-				// Print statement
-				case '=':
-					i++;
-					if (print) {
-						result += ',';
+			while ((currentChar = content.charAt(index)) && (currentSec = content.substr(index, 2)) !== open) {
+				if (currentChar === '\'' || currentChar === '\\') {
+					if (afterCode || beforeCode) {
+						afterCode = false;
+						beforeCode = false;
+						result += buffer;
+						buffer = '';
+					}
+					result += '\\' + currentChar;
+					firstCode = false;
+				} else if (currentChar === '\n' || currentSec === '\r\n' || currentChar === '\r' || currentChar === '\u2028' || currentChar === '\u2029') {
+					if (!firstCode) {
+						beforeCode = true;
+						buffer = '\\n';
+					}
+					firstCode = false;
+				} else {
+					if ((afterCode || beforeCode) && (currentChar === ' ' || currentChar === '\t')) {
+						buffer += currentChar;
 					} else {
-						result += 'print(';
+						if (afterCode || beforeCode) {
+							afterCode = false;
+							beforeCode = false;
+							result += buffer;
+							buffer = '';
+						}
+						result += currentChar;
+						firstCode = false;
 					}
-					result += content.slice(i, index).trim();
-					i += index - i;
-					print = true;
-					break;
-
-				// Include statement
-				case '#':
-					i++;
-					if (print) {
-						result += ');';
-					}
-					result += 'include(' + content.slice(i, index).trim() + ');';
-					i += index - i;
-					print = false;
-					break;
-
-				// Code statement
-				default:
-					if (print) {
-						result += ');';
-					}
-					result += content.slice(i, index).trim() + ';';
-					i += index - i;
-					print = false;
-			}
-			start = i + 2;
-		} else if (content[i] === '\'' || content[i] === '\\') {
-			if (print) {
-				if (start !== 0) {
-					result += ',\'';
 				}
-			} else {
-				result += 'print(\'';
+				index++;
 			}
-			result += content.slice(start, i);
-			print = true;
-			result += '\\' + content[i] + '\'';
-			start = i + 1;
-		} else if (content[i] === '\n' || content[i] === '\r' || content[i] === '\u2028' || content[i] === '\u2029') {
-			if (print) {
-				if (start !== 0) {
-					result += ',\'';
-				}
-			} else {
-				result += 'print(\'';
-			}
-			result += content.slice(start, i);
-			print = true;
-			result += '\\n\'';
-			start = i + 1;
+			result += '\'';
 		}
-	}
-
-	// End parsing
-	if (start !== content.length) {
-		if (print) {
-			if (start !== 0) {
-				result += ',\'';
-			}
-		} else {
-			result += 'print(\'';
-		}
-		result += content.slice(start) + '\')';
-	} else {
-		if (print) {
+		if (!content.charAt(index) && print) {
 			result += ')';
 		}
 	}
@@ -126,59 +120,91 @@ var simplet = module.exports = function (config) {
 	// Set up the engine configuration
 	config = config || {};
 
-	if (config.cache) {
-		this.cache = {};
-	}
-
-	this.close = config.close || '%>';
-	this.open = config.open || '<%';
-	this.string = config.string || false;
-	this.raw = config.raw || false;
+	Object.defineProperties(this, {
+		cache: {
+			value: {}
+		},
+		close: {
+			value: config.close || '%>'
+		},
+		open: {
+			value: config.open || '<%'
+		},
+		raw: {
+			value: config.raw || false
+		},
+		string: {
+			value: config.string || false
+		}
+	});
 };
 
-// Render templates from strings or files
-simplet.prototype.render = function (source, imports, id) {
+// Removes sources from cache or clears the cache completely
+simplet.prototype.clearCache = function (source) {
 	'use strict';
-	var content;
-	var executable;
-	var parameters = [];
-	var result;
-	var values = [];
-
-	// If the source is cached use the cache
-	if (this.cache && this.cache[source]) {
-		content = this.cache[source];
+	if (source) {
+		delete this.cache[source];
 	} else {
-		
-		// Get the source content
-		if (this.string) {
-			content = source;
-			source = id;
-		} else {
-			try {
-				content = fs.readFileSync(source, 'utf8');
-			} catch (error) {
-				console.log('\nsimpleT: can not read source "' + source + '"\n' + error.message + '\n');
-				return;
-			}
-		}
-
-		result = parse(content, this.open, this.close);
-
-		// Cache the result
-		if (this.cache) {
-			this.cache[source] = result;
-		}
+		this.cache = {};
 	}
+};
+
+// Compiles the raw content and requrns the result
+simplet.prototype.compile = function (content, imports) {
+	'use strict';
+	var parameters = [];
+	var values = [];
 
 	// Populate the parameters and the values for the executable frunction
 	for (var i in imports) {
 		parameters.push(i);
 		values.push(imports[i]);
 	}
-	executable = 'var resultContent=\'\',include=function(file,imports){resultContent+=this.render(\'' + (source ? path.dirname(source) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports)}.bind(this),print=function(){for(var i=0,n=arguments.length;i<n;i++){resultContent+=arguments[i]}};' + result + ';return resultContent';
+
+	return new Function(parameters.join(), content).apply(this, values);
+};
+
+// Cache the source for further usage
+simplet.prototype.precache = function (source, id) {
+	'use strict';
+	var content;
+	if (this.string) {
+		content = source;
+		source = id;
+	} else {
+		try {
+			content = fs.readFileSync(source, 'utf8');
+		} catch (error) {
+			console.log('\nsimpleT: can not read source "' + source + '"\n' + error.message + '\n');
+			return;
+		}
+	}
+
+	try {
+		this.cache[source] = parse(content, this.open, this.close);
+	} catch (error) {
+		console.log('\nsimpleT: ' + error + ' "' + source + '"\n');
+	}
+
+	return this.cache[source];
+};
+
+// Render templates from strings or files
+simplet.prototype.render = function (source, imports, id) {
+	'use strict';
+	var executable;
+	var result;
+
+	// If the source is cached use the cache
+	if ((!this.string && this.cache[source]) || (this.string && this.cache[id])) {
+		result = this.cache[source];
+	} else {
+		result = this.precache(source, id);
+	}
+	
+	executable = 'var resultContent=\'\',include=function(file,imports,id){resultContent+=this.render(\'' + (source ? path.dirname(source) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports,id)}.bind(this),print=function(){for(var i=0,n=arguments.length;i<n;i++){resultContent+=arguments[i]}};' + result + ';return resultContent';
 	if (this.raw) {
 		return executable;
 	}
-	return new Function(parameters.join(), executable).apply(this, values);
+	return this.compile(executable, imports);
 };

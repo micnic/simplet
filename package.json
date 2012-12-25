@@ -1,9 +1,10 @@
 {
 	"name": "simplet",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Simple Template Engine",
 	"keywords": [
 		"client-side",
+		"ejs",
 		"engine",
 		"simple",
 		"template"

@@ -7,7 +7,7 @@ var simplet = require('../index');
 
 
 //console.log(engine.parse('<%test%><%test2%>'));
-console.log(simplet({}).render(__dirname + '/test.html.ejs', {test:1}));
+console.log(simplet().render(__dirname + '/test.html.ejs', {user:{name:'micnic'}}));
 
 /*simplet('test.html.ejs', {
     user: 'me',

@@ -1,4 +1,4 @@
-# simpleT 0.0.3
+# simpleT 0.0.4
 
 simpleT is a simple template engine for node.js that has some special features:
 
@@ -6,6 +6,7 @@ simpleT is a simple template engine for node.js that has some special features:
 - Embedded JavaScript support
 - Client-side support
 - High performance
+- Customizable code delimiters
 - Global values injection
 - Caching
 - Includes
@@ -53,6 +54,12 @@ var fileEngine = simplet();
 fileEngine.render('template.ejs', {
     name: 'me'
 });
+
+/* ***output***
+
+Hello me
+
+*/
 ```
 
 ## Syntax
