@@ -28,7 +28,7 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
-          <h1>simpleT 0.0.3</h1>
+          <h1>simpleT 0.0.4</h1>
 
 <p>simpleT is a simple template engine for node.js that has some special features:</p>
 
@@ -37,6 +37,7 @@
 <li>Embedded JavaScript support</li>
 <li>Client-side support</li>
 <li>High performance</li>
+<li>Customizable code delimiters</li>
 <li>Global values injection</li>
 <li>Caching</li>
 <li>Includes</li>
@@ -83,6 +84,12 @@
 <span class="nx">fileEngine</span><span class="p">.</span><span class="nx">render</span><span class="p">(</span><span class="s1">'template.ejs'</span><span class="p">,</span> <span class="p">{</span>
     <span class="nx">name</span><span class="o">:</span> <span class="s1">'me'</span>
 <span class="p">});</span>
+
+<span class="cm">/* ***output***</span>
+
+<span class="cm">Hello me</span>
+
+<span class="cm">*/</span>
 </pre></div>
 
 <h2>Syntax</h2>
