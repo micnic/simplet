@@ -7,7 +7,6 @@ function parse(content, open, close) {
 	
 	var openLength = open.length;
 	var closeLength = close.length
-	
 	var include = false;
 	var print = false;
 	var result = '';

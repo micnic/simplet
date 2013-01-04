@@ -1,6 +1,10 @@
 // Parses the content and returns executable result
 function parse(content, open, close) {
 	'use strict';
+	
+	var openLength = open.length;
+	var closeLength = close.length
+	
 	var include = false;
 	var print = false;
 	var result = '';
@@ -11,16 +15,12 @@ function parse(content, open, close) {
 
 	var beforeCode = true;
 	var afterCode = false;
-	var firstCode = false;
 	var buffer = '';
-
-	if (content.substr(0, 2) === open) {
-		firstCode = true;
-	}
+	var temp = '';
 
 	while (currentChar = content.charAt(index)) {
-		if (content.substr(index, 2) === open) {
-			index += 2;
+		if (content.substr(index, openLength) === open) {
+			index += openLength;
 			currentChar = content.charAt(index);
 			if (currentChar === '=') {
 				if (print) {
@@ -42,44 +42,37 @@ function parse(content, open, close) {
 				result += ');';
 				print = false;
 			}
-			while ((currentChar = content.charAt(index)) && content.substr(index, 2) !== close) {
+			while ((currentChar = content.charAt(index)) && content.substr(index, closeLength) !== close) {
 				result += currentChar;
 				index++;
 			}
 			if (!currentChar) {
-				throw 'Unexpected end of template';
+				throw 0;
 			} else if (!print) {
 				if (include) {
 					result += ')';
 					include = false;
 				}
-				result += ';';
 			}
-			index += 2;
+			index += closeLength;
 			afterCode = true;
 		} else if (currentChar) {
-			if (print) {
-				result += ',\'';
-			} else {
-				result += 'print(\'';
-				print = true;
-			}
-			while ((currentChar = content.charAt(index)) && (currentSec = content.substr(index, 2)) !== open) {
+			while ((currentChar = content.charAt(index)) && (currentSec = content.substr(index, openLength)) !== open) {
 				if (currentChar === '\'' || currentChar === '\\') {
 					if (afterCode || beforeCode) {
 						afterCode = false;
 						beforeCode = false;
-						result += buffer;
+						temp += buffer;
 						buffer = '';
 					}
-					result += '\\' + currentChar;
-					firstCode = false;
+					temp += '\\' + currentChar;
 				} else if (currentChar === '\n' || currentSec === '\r\n' || currentChar === '\r' || currentChar === '\u2028' || currentChar === '\u2029') {
-					if (!firstCode) {
-						beforeCode = true;
-						buffer = '\\n';
+					if (!afterCode) {
+						temp += buffer;
 					}
-					firstCode = false;
+					afterCode = false;
+					beforeCode = true;
+					buffer = '\\n';
 				} else {
 					if ((afterCode || beforeCode) && (currentChar === ' ' || currentChar === '\t')) {
 						buffer += currentChar;
@@ -87,16 +80,24 @@ function parse(content, open, close) {
 						if (afterCode || beforeCode) {
 							afterCode = false;
 							beforeCode = false;
-							result += buffer;
+							temp += buffer;
 							buffer = '';
 						}
-						result += currentChar;
-						firstCode = false;
+						temp += currentChar;
 					}
 				}
 				index++;
 			}
-			result += '\'';
+			if (temp) {
+				if (print) {
+					result += ',\'';
+				} else {
+					result += 'print(\'';
+					print = true;
+				}
+				result += temp + '\'';
+				temp = '';
+			}
 		}
 		if (!content.charAt(index) && print) {
 			result += ')';
