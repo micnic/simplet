@@ -3,7 +3,7 @@ function parse(content, open, close) {
 	'use strict';
 	
 	var openLength = open.length;
-	var closeLength = close.length
+	var closeLength = close.length;
 	
 	var include = false;
 	var print = false;
@@ -47,12 +47,13 @@ function parse(content, open, close) {
 				index++;
 			}
 			if (!currentChar) {
-				throw 0;
+				throw 'Unexpected end of template';
 			} else if (!print) {
 				if (include) {
 					result += ')';
 					include = false;
 				}
+				result += ';';
 			}
 			index += closeLength;
 			afterCode = true;
@@ -86,7 +87,11 @@ function parse(content, open, close) {
 						temp += currentChar;
 					}
 				}
-				index++;
+				if (currentSec === '\r\n') {
+					index += 2;
+				} else {
+					index++;
+				}
 			}
 			if (temp) {
 				if (print) {
@@ -99,9 +104,9 @@ function parse(content, open, close) {
 				temp = '';
 			}
 		}
-		if (!content.charAt(index) && print) {
-			result += ')';
-		}
+	}
+	if (!content.charAt(index) && print) {
+		result += ')';
 	}
 
 	return result;
