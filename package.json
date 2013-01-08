@@ -1,0 +1,30 @@
+{
+	"name": "simplet",
+	"version": "0.0.6",
+	"description": "Simple Template Engine",
+	"keywords": [
+		"client-side",
+		"ejs",
+		"engine",
+		"simple",
+		"template"
+	],
+	"homepage": "https://github.com/micnic/simplet",
+	"bugs": {
+		"url": "https://github.com/micnic/simplet/issues",
+		"email": "micnic90@gmail.com"
+	},
+	"author": {
+		"name": "Micleusanu Nicu",
+		"email": "micnic90@gmail.com",
+		"url": "https://github.com/micnic/"
+	},
+	"main": "index",
+	"repository": {
+		"type": "git",
+		"url": "http://github.com/micnic/simplet"
+	},
+	"engines": {
+		"node": ">=0.8"
+	}
+}
