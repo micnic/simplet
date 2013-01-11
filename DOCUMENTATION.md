@@ -91,7 +91,7 @@ To isolate the code from the rest of the content of the template the open and th
 	<% } %>
 
 ### Data Printing
-To print some data it is necessary to use the open tag followed by an `=` symbol, the data and the close tag or using the `print()` function inside the code isolation, example:
+To print some data it is necessary to use the open tag followed by an `=` symbol, the data and the close tag or using the `print()` function inside the code isolation, this function will escape automatically the HTML characters, example:
 
 	<%= 'HelloWorld'.toLowerCase() %>
 

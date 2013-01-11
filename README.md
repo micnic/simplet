@@ -1,4 +1,4 @@
-# simpleT 0.0.6
+# simpleT 0.0.7
 
 simpleT is a simple template engine for node.js that has some special features:
 
@@ -10,6 +10,8 @@ simpleT is a simple template engine for node.js that has some special features:
 - Global values injection
 - Caching
 - Includes
+- Automatic HTML characters escape
+- Result without redundant whitespace
 
 Tested with node.js 0.8+
 
@@ -29,13 +31,14 @@ Tested with node.js 0.8+
 ```javascript
 var simplet = require('simplet');
 var stringEngine = simplet({
-    cache: false,
     close: '}}',
-    open: '{{',
-    string: true
+    open: '{{'
 });
 
-stringEngine.render('Hello {{=name}}', {
+stringEngine.render({
+	id: 'test',
+	content: 'Hello {{=name}}'
+}, {
     name: 'me'
 });
 ```

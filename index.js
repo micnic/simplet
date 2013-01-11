@@ -166,9 +166,6 @@ var simplet = module.exports = function (config) {
 		},
 		raw: {
 			value: config.raw || false
-		},
-		string: {
-			value: config.string || false
 		}
 	});
 };
@@ -238,32 +235,16 @@ simplet.prototype.precache = function (source) {
 // Render templates from strings or files
 simplet.prototype.render = function (source, imports) {
 	'use strict';
-	var executable;
-	var result;
-	var id;
 
 	// Get the identifier for the template
-	if (typeof source === 'string') {
-		id = source;
-	} else {
-		id = source.id;
-	}
+	var id = typeof source === 'string' ? source : source.id;
 
 	// Check for existing cache
-	if (this.cache[id]) {
-		result = this.cache[id];
-	} else {
-		result = this.precache(source);
-	}
-
-	result = this.cache[id] ? this.cache[id] : this.precache(source);
+	var result = this.cache[id] ? this.cache[id] : this.precache(source);
 	
-	executable = 'var _result=\'\',include=function(file,imports,id){_result+=this.render(\'' + (id ? path.dirname(id) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports,id)}.bind(this),print=function(){for(var i=0,n=arguments.length;i<n;i++){_result+=arguments[i]}};' + result + ';\nreturn _result';
+	// Prepare the executable string
+	var executable = 'var _result=\'\',include=function(file,imports,id){_result+=this.render(\'' + (id ? path.dirname(id) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports,id)}.bind(this),print=function(){var result=\'\';for(var i=0,n=arguments.length;i<n;i++)if(typeof arguments[i]===\'string\'||(arguments[i] instanceof String))result+=arguments[i];else result+=JSON.stringify(arguments[i]);for(var i=0,n=result.length;i<n;i++)if(result.charAt(i)===\'&\'||result.charAt(i)===\'<\'||result.charAt(i)===\'>\')result=result.substring(0,i)+\'&#\'+result.charCodeAt(i)+\';\'+result.substring(i+1),i+=4,n+=4;_result+=result};' + result + ';\nreturn _result';
 
 	// Return raw content if the engine is configured
-	if (this.raw) {
-		return executable;
-	}
-
-	return this.compile(executable, imports);
+	return this.raw ? executable : this.compile(executable, imports);
 };
