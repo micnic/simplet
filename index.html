@@ -28,7 +28,7 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
-          <h1>simpleT 0.0.6</h1>
+          <h1>simpleT 0.0.7</h1>
 
 <p>simpleT is a simple template engine for node.js that has some special features:</p>
 
@@ -41,6 +41,8 @@
 <li>Global values injection</li>
 <li>Caching</li>
 <li>Includes</li>
+<li>Automatic HTML characters escape</li>
+<li>Result without redundant whitespace</li>
 </ul><p>Tested with node.js 0.8+</p>
 
 <p><em>THIS DESCRIPTION IS NOT COMPLETE, MORE CONTENT WILL BE ADDED</em></p>
@@ -60,13 +62,14 @@
 
 <div class="highlight"><pre><span class="kd">var</span> <span class="nx">simplet</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'simplet'</span><span class="p">);</span>
 <span class="kd">var</span> <span class="nx">stringEngine</span> <span class="o">=</span> <span class="nx">simplet</span><span class="p">({</span>
-    <span class="nx">cache</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
     <span class="nx">close</span><span class="o">:</span> <span class="s1">'}}'</span><span class="p">,</span>
-    <span class="nx">open</span><span class="o">:</span> <span class="s1">'{{'</span><span class="p">,</span>
-    <span class="nx">string</span><span class="o">:</span> <span class="kc">true</span>
+    <span class="nx">open</span><span class="o">:</span> <span class="s1">'{{'</span>
 <span class="p">});</span>
 
-<span class="nx">stringEngine</span><span class="p">.</span><span class="nx">render</span><span class="p">(</span><span class="s1">'Hello {{=name}}'</span><span class="p">,</span> <span class="p">{</span>
+<span class="nx">stringEngine</span><span class="p">.</span><span class="nx">render</span><span class="p">({</span>
+    <span class="nx">id</span><span class="o">:</span> <span class="s1">'test'</span><span class="p">,</span>
+    <span class="nx">content</span><span class="o">:</span> <span class="s1">'Hello {{=name}}'</span>
+<span class="p">},</span> <span class="p">{</span>
     <span class="nx">name</span><span class="o">:</span> <span class="s1">'me'</span>
 <span class="p">});</span>
 </pre></div>
