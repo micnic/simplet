@@ -58,6 +58,8 @@ function parse(content, open, close) {
 				// Take the close tags in javascript string
 				if ((currentChar === '\'' || currentChar === '"') && previousChar !== '\\') {
 					stop = currentChar;
+					result += currentChar;
+					index++;
 					while ((currentChar = content.charAt(index)) && currentChar !== stop && previousChar !== '\\') {
 						result += currentChar;
 						previousChar = currentChar;
@@ -114,12 +116,8 @@ function parse(content, open, close) {
 				} else {
 
 					buffer += whitespace;
-					
-					// Break whitespace ignoring
-					if (code) {
-						whitespace = '';
-						code = false;
-					}
+					whitespace = '';
+					code = false;
 
 					// Escape for "'" and "\"
 					if (currentChar === '\'' || currentChar === '\\') {

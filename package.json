@@ -1,6 +1,6 @@
 {
 	"name": "simplet",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"description": "Simple Template Engine",
 	"keywords": [
 		"client-side",
