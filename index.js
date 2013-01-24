@@ -159,6 +159,9 @@ var simplet = module.exports = function (config) {
 		close: {
 			value: config.close || '%>'
 		},
+		globals: {
+			value: config.globals || {}
+		},
 		open: {
 			value: config.open || '<%'
 		},
@@ -183,6 +186,12 @@ simplet.prototype.compile = function (content, imports) {
 	'use strict';
 	var parameters = [];
 	var values = [];
+
+	// Add global values from the template engine
+	for (var i in this.globals) {
+		parameters.push(i);
+		values.push(this.globals[i]);
+	}
 
 	// Populate the parameters and the values for the executable frunction
 	for (var i in imports) {

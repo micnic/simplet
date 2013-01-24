@@ -7,10 +7,16 @@ var simplet = require('simplet');
 
 config: object
 
-simpleT uses a configuration object which is used to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to modify some content of the cache `.clearCache()` and `.precache()` methods should be used. Example:
+simpleT uses a configuration object to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to modify some content of the cache `.clearCache()` and `.precache()` methods should be used. Example:
 ```javascript
 var engine = simplet({
     close: '}}', // The close tag of the templates, default is '%>'
+    globals: { // Define global values and functions for rendered templates
+        pi: 3.14,
+        increment: function (x) {
+            return x+1;
+        }
+    },
     open: '{{', // The open tag of the templates, default is '<%'
     raw: true // Specifies that the engine will return the executable content of the template, not the result, default is false
 });
