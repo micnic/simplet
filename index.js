@@ -46,7 +46,6 @@ function parse(content, open, close) {
 
 			// Found include statement
 			} else if (currentChar === '#') {
-
 				result += 'include(';
 				expression = true;
 				index++;
@@ -250,7 +249,7 @@ simplet.prototype.render = function (source, imports) {
 	var result = this.cache[id] ? this.cache[id] : this.precache(source);
 	
 	// Prepare the executable string
-	var executable = 'var _result=\'\',include=function(file,imports,id){_result+=this.render(\'' + (id ? path.dirname(id) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports,id)}.bind(this),print=function(){var result=\'\';for(var i=0,n=arguments.length;i<n;i++)if(typeof arguments[i]===\'string\'||(arguments[i] instanceof String))result+=arguments[i];else result+=JSON.stringify(arguments[i]);for(var i=0,n=result.length;i<n;i++)if(result.charAt(i)===\'&\'||result.charAt(i)===\'<\'||result.charAt(i)===\'>\')result=result.substring(0,i)+\'&#\'+result.charCodeAt(i)+\';\'+result.substring(i+1),i+=4,n+=4;_result+=result};' + result + ';\nreturn _result';
+	var executable = 'var _result=\'\',include=function(file,imports){_result+=this.render(\'' + (id ? path.dirname(id) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports)}.bind(this),print=function(){var result=\'\';for(var i=0,n=arguments.length;i<n;i++)if(typeof arguments[i]===\'string\'||(arguments[i] instanceof String))result+=arguments[i];else result+=JSON.stringify(arguments[i]);for(var i=0,n=result.length;i<n;i++)if(result.charAt(i)===\'&\'||result.charAt(i)===\'<\'||result.charAt(i)===\'>\')result=result.substring(0,i)+\'&#\'+result.charCodeAt(i)+\';\'+result.substring(i+1),i+=4,n+=4;_result+=result};' + result + ';\nreturn _result';
 
 	// Return raw content if the engine is configured
 	return this.raw ? executable : this.compile(executable, imports);

@@ -5,18 +5,19 @@ function parse(content, open, close) {
 	var openLength = open.length;
 	var closeLength = close.length;
 
-	var include = false;
-	var print = false;
+	var expression = false;
 	var result = '';
 
 	var index = 0;
 	var currentChar;
 	var currentSec;
 
-	var beforeCode = true;
-	var afterCode = false;
+	var code = false;
 	var whitespace = '';
 	var buffer = '';
+
+	var previousChar = '';
+	var stop = '';
 
 	// Parse char by char
 	while (currentChar = content.charAt(index)) {
@@ -25,61 +26,62 @@ function parse(content, open, close) {
 		if (content.substr(index, openLength) === open) {
 			index += openLength;
 			currentChar = content.charAt(index);
+			code = true;
 
 			// Found print statement
 			if (currentChar === '=') {
 
-				// If after print statement then concatenate
-				if (print) {
-					result += ',';
-				} else {
-					result += 'print(';
-					print = true;
+				// Add whitespace for print statements
+				if (whitespace) {
+					result += '_result+=\'' + whitespace + '\';';
 				}
 
+				result += 'print(';
+				expression = true;
+				code = false;
 				index++;
 
 			// Found include statement
 			} else if (currentChar === '#') {
-
-				// Close previous print statement
-				if (print) {
-					result += ');';
-					print = false;
-				}
-
 				result += 'include(';
-				include = true;
+				expression = true;
 				index++;
-
-			// Found plain code and close previous print statement
-			} else if (print) {
-				result += ');';
-				print = false;
 			}
 
 			// Get the chars of the code
 			while ((currentChar = content.charAt(index)) && content.substr(index, closeLength) !== close) {
+
+				// Take the close tags in javascript string
+				if ((currentChar === '\'' || currentChar === '"') && previousChar !== '\\') {
+					stop = currentChar;
+					result += currentChar;
+					index++;
+					while ((currentChar = content.charAt(index)) && currentChar !== stop && previousChar !== '\\') {
+						result += currentChar;
+						previousChar = currentChar;
+						index++;
+					}
+				}
+
 				result += currentChar;
+				previousChar = currentChar;
 				index++;
 			}
 
 			// Check for unexpected end of line
 			if (!currentChar) {
 				throw 'Unexpected end of template';
-			} else if (!print) {
-
-				// Close include statement if found
-				if (include) {
-					result += ')';
-					include = false;
-				}
-
-				result += ';';
 			}
 
+			// Close open expression if found
+			if (expression) {
+				result += ')';
+				expression = false;
+			}
+			
+			result += '\n';
 			index += closeLength;
-			afterCode = true;
+			whitespace = '';
 
 		// Found other chars
 		} else if (currentChar) {
@@ -87,30 +89,19 @@ function parse(content, open, close) {
 			// While no code found
 			while ((currentChar = content.charAt(index)) && (currentSec = content.substr(index, openLength)) !== open) {
 
-				// Escape for "'" and "\"
-				if (currentChar === '\'' || currentChar === '\\') {
-
-					// Break whitespace ignoring
-					if (afterCode || beforeCode) {
-						afterCode = false;
-						beforeCode = false;
-						buffer += whitespace;
-						whitespace = '';
-					}
-
-					buffer += '\\' + currentChar;
-
+				// Ignore whitespace on the lines with code
+				if (currentChar === ' ' || currentChar === '\t') {
+					whitespace += currentChar;
+				
 				// Escape for end of line
 				} else if (currentChar === '\n' || currentSec === '\r\n' || currentChar === '\r' || currentChar === '\u2028' || currentChar === '\u2029') {
 
 					// Add whitespace if not after code
-					if (!afterCode) {
-						buffer += whitespace;
+					if (code) {
+						whitespace = '';
+					} else {
+						buffer += whitespace + '\\n';
 					}
-
-					afterCode = false;
-					beforeCode = true;
-					whitespace = '\\n';
 
 					// If Windows end of line
 					if (currentSec === '\r\n') {
@@ -120,43 +111,27 @@ function parse(content, open, close) {
 				// Get all other chars
 				} else {
 
-					// Ignore whitespace on the lines with code
-					if ((afterCode || beforeCode) && (currentChar === ' ' || currentChar === '\t')) {
-						whitespace += currentChar;
-					} else {
+					buffer += whitespace;
+					whitespace = '';
+					code = false;
 
-						// Break whitespace ignoring
-						if (afterCode || beforeCode) {
-							afterCode = false;
-							beforeCode = false;
-							buffer += whitespace;
-							whitespace = '';
-						}
-
-						buffer += currentChar;
+					// Escape for "'" and "\"
+					if (currentChar === '\'' || currentChar === '\\') {
+						buffer += '\\';
 					}
+					
+					buffer += currentChar;
 				}
 
-				index ++;
+				index++;
 			}
 
 			// Concatenate the buffer if it exists
 			if (buffer) {
-				if (print) {
-					result += ',\'';
-				} else {
-					result += 'print(\'';
-					print = true;
-				}
-				result += buffer + '\'';
+				result += '_result+=\'' + buffer + '\';';
 				buffer = '';
 			}
 		}
-	}
-
-	// Close the lase print statement
-	if (!content.charAt(index) && print) {
-		result += ')';
 	}
 
 	return result;
@@ -180,14 +155,14 @@ var simplet = function (config) {
 		close: {
 			value: config.close || '%>'
 		},
+		globals: {
+			value: config.globals || {}
+		},
 		open: {
 			value: config.open || '<%'
 		},
 		raw: {
 			value: config.raw || false
-		},
-		string: {
-			value: config.string || false
 		}
 	});
 };
@@ -208,6 +183,12 @@ simplet.prototype.compile = function (content, imports) {
 	var parameters = [];
 	var values = [];
 
+	// Add global values from the template engine
+	for (var i in this.globals) {
+		parameters.push(i);
+		values.push(this.globals[i]);
+	}
+
 	// Populate the parameters and the values for the executable frunction
 	for (var i in imports) {
 		parameters.push(i);
@@ -218,46 +199,55 @@ simplet.prototype.compile = function (content, imports) {
 };
 
 // Cache the source for further usage
-simplet.prototype.precache = function (source, id) {
+simplet.prototype.precache = function (source) {
 	'use strict';
 	var content;
-	if (this.string) {
-		content = source;
-		source = id;
-	} else {
+	var id;
+	var cache;
+
+	// Get the identifier and the content of the template
+	if (typeof source === 'string') {
+		id = source;
 		try {
 			content = document.getElementById(source).innerHTML;
 		} catch (error) {
 			console.log('\nsimpleT: can not read source "' + source + '"\n' + error.message + '\n');
 			return;
 		}
+	} else {
+		id = source.id;
+		content = source.content;
 	}
 
+	// Try to parse content
 	try {
-		this.cache[source] = parse(content, this.open, this.close);
-		return this.cache[source];
+		cache = parse(content, this.open, this.close);
+
+		// Cache only if identifier is provided
+		if (id) {
+			this.cache[id] = cache;
+		}
+		
+		return cache;
 	} catch (error) {
-		console.log('\nsimpleT: Unexpected end of template in source "' + source + '"\n');
+		console.log('\nsimpleT: Unexpected end of template in source "' + id + '"\n');
 		return;
 	}
 };
 
 // Render templates from strings or HTMLElements
-simplet.prototype.render = function (source, imports, id) {
+simplet.prototype.render = function (source, imports) {
 	'use strict';
-	var executable;
-	var result;
 
-	// If the source is cached use the cache
-	if ((!this.string && this.cache[source]) || (this.string && this.cache[id])) {
-		result = this.cache[source];
-	} else {
-		result = this.precache(source, id);
-	}
+	// Get the identifier for the template
+	var id = typeof source === 'string' ? source : source.id;
 
-	executable = 'var resultContent=\'\',include=function(file,imports,id){resultContent+=this.render(file,imports,id)}.bind(this),print=function(){for(var i=0,n=arguments.length;i<n;i++){resultContent+=arguments[i]}};' + result + ';return resultContent';
-	if (this.raw) {
-		return executable;
-	}
-	return this.compile(executable, imports);
+	// Check for existing cache
+	var result = this.cache[id] ? this.cache[id] : this.precache(source);
+	
+	// Prepare the executable string
+	var executable = 'var _result=\'\',include=function(file,imports){_result+=this.render(file,imports)}.bind(this),print=function(){var result=\'\';for(var i=0,n=arguments.length;i<n;i++)if(typeof arguments[i]===\'string\'||(arguments[i] instanceof String))result+=arguments[i];else result+=JSON.stringify(arguments[i]);for(var i=0,n=result.length;i<n;i++)if(result.charAt(i)===\'&\'||result.charAt(i)===\'<\'||result.charAt(i)===\'>\')result=result.substring(0,i)+\'&#\'+result.charCodeAt(i)+\';\'+result.substring(i+1),i+=4,n+=4;_result+=result};' + result + ';\nreturn _result';
+
+	// Return raw content if the engine is configured
+	return this.raw ? executable : this.compile(executable, imports);
 };
