@@ -114,7 +114,7 @@ or
 
 	<% include('header.ejs') %>
 ## Client-Side
-On the client-side simpleT can be used from `utils/simplet.js` file inside the module folder. The only difference from the server-side version is that instead of files HTML elements are used and their id should be provided. Example:
+On the client-side simpleT can be used from `utils/simplet.js` file inside the module folder, the content of this file is available using `simplet.client` as a Buffer. The only difference from the server-side version is that instead of files HTML elements are used and their id should be provided. Example:
 
 	<script src="../utils/simplet.js"></script>
 	<script id="include" type="text/simplet">

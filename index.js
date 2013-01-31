@@ -254,3 +254,6 @@ simplet.prototype.render = function (source, imports) {
 	// Return raw content if the engine is configured
 	return this.raw ? executable : this.compile(executable, imports);
 };
+
+// Public the content for client side template engine
+module.exports.client = fs.readFileSync(__dirname + '/utils/simplet.js');
