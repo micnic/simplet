@@ -1,4 +1,4 @@
-# simpleT 0.0.9
+# simpleT 0.1.0
 
 simpleT is a simple template engine for node.js that has some special features:
 
