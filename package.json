@@ -1,6 +1,6 @@
 {
 	"name": "simplet",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Simple Template Engine",
 	"keywords": [
 		"client-side",
@@ -25,6 +25,6 @@
 		"url": "http://github.com/micnic/simplet"
 	},
 	"engines": {
-		"node": ">=0.8"
+		"node": ">=0.10"
 	}
 }

@@ -1,4 +1,4 @@
-var simplet = require('../index');
+var simplet = require('simplet');
 
 var engine = simplet({
 	globals: {
@@ -9,4 +9,6 @@ var engine = simplet({
 	}
 });
 
-console.log(engine.render({content:'<%=po(1)%>'}));
+setInterval(function () {
+	console.log(engine.render('test.html.ejs'));
+}, 1000);

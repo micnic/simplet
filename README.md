@@ -1,6 +1,6 @@
-# simpleT 0.1.0
+# simpleT 0.1.1
 
-simpleT is a simple template engine for node.js that has some special features:
+simpleT is a simple template engine for Node.JS that has some special features:
 
 - Simple structure with minimum configuration
 - Embedded JavaScript support
@@ -8,19 +8,19 @@ simpleT is a simple template engine for node.js that has some special features:
 - High performance
 - Customizable code delimiters
 - Global values injection
-- Caching
+- Dynamic caching
 - Includes
 - Automatic HTML characters escape
 - Result without redundant whitespace
 
-Tested with node.js 0.8+
+#### Works in Node.JS 0.10+
+#### Any feedback is welcome!
 
-*THIS DESCRIPTION IS NOT COMPLETE, MORE CONTENT WILL BE ADDED*
+#### More simple modules:
+- [simpleR](http://micnic.github.com/simpleR/)
+- [simpleS](http://micnic.github.com/simpleS/)
 
-### [Documentation](https://github.com/micnic/simpleT/wiki/Documentation "simpleS Documentation")
-
-#### More simple modules
-[simpleS](http://micnic.github.com/simpleS/)
+### [Documentation](https://github.com/micnic/simpleT/wiki/Documentation "simpleT Documentation")
 
 ## Instalation
 

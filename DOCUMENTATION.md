@@ -62,15 +62,6 @@ Get the content, execute it and returns the result of the execution. Should be u
 engine.compile(result);
 ```
 ## Cache Management
-`.clearCache([id])`
-
-id: string
-
-If `id` parameter is defined then the specified source will be removed from the cache. If `id` is not defined then all the sources will be removed from the cache. Example:
-```javascript
-engine.clearCache('hello');
-```
-
 `.precache(source)`
 
 source: object or string
@@ -86,6 +77,15 @@ engine.precache({
 
 engine.precache('hello.ejs');
 */
+```
+
+`.clear([id])`
+
+id: string
+
+If `id` parameter is defined then the specified source will be removed from the cache. If `id` is not defined then all the sources will be removed from the cache. Example:
+```javascript
+engine.clearCache('hello');
 ```
 ## Template Syntax
 The syntax below will be defined only for default open and close tags.
