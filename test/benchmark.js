@@ -1,16 +1,17 @@
 var simplet = require('../index'),
-	str = ' <% if (foo) { %><p><%= foo %></p><% } %>',
     times = 50000;
 
-console.log('rendering ' + times + ' times');
 var engine = simplet();
-var start = new Date;
+engine.precache('bench.ejs');
+
+console.log('rendering ' + times + ' times');
+
+var start = process.hrtime();
 
 while (times--) {
-	engine.render({
-		id: 'test',
-		content: str
-	}, {foo: 'bar'});
+	engine.render('bench.ejs', {foo: 'bar'});
 }
 
-console.log('took ' + (new Date - start) + 'ms');
+var end = process.hrtime(start);
+
+console.log('took ' + (end[0] + end[1] / 1e9) + 's');

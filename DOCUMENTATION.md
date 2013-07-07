@@ -7,18 +7,19 @@ var simplet = require('simplet');
 
 config: object
 
-simpleT uses a configuration object to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to modify some content of the cache `.clearCache()` and `.precache()` methods should be used. Example:
+simpleT uses a configuration object to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to remove a template from the cache '.clear()' method should be used. Example:
 ```javascript
 var engine = simplet({
-    close: '}}', // The close tag of the templates, default is '%>'
-    globals: { // Define global values and functions for rendered templates
+    close: '}}',		// The close tag of the templates, default is '%>'
+    extension: 'ejs',	// The name of the extension which will be added to the names of the templates
+    folder: 'views',	// The name of the folder, in which the templates are placed
+    globals: {			// Define global values and functions for rendered templates
         pi: 3.14,
         increment: function (x) {
-            return x+1;
+            this.print(x + 1);
         }
     },
-    open: '{{', // The open tag of the templates, default is '<%'
-    raw: true // Specifies that the engine will return the executable content of the template, not the result, default is false
+    open: '{{',			// The open tag of the templates, default is '<%'
 });
 ```
 
@@ -29,63 +30,38 @@ source: object or string
 
 imports: object
 
-The `.render()` method is used to render the provided templates, these templates can be as strings or files, provided in the `source` parameter, simpleT will know how to use this parameter depending on its type, if it is a string, then it will be treated as the path to the file, if the type of the parameter is an object then simpleT will get the `id` attribute for caching and the `content` attribute for the template. It is possible to define some special values inside the template by adding these as attributes to the imports object. Example:
+The `.render()` method is used to render the provided templates, on the server-side the source is the path to the file, on the client-side - string. It is possible to define some special values inside the template by adding these as attributes to the imports object. Example:
 ```javascript
-var result = engine.render({
-    id: 'hello',
-    content: '{{= hello, world}}'
-}, {
-    hello: 'Hello',
-    world: 'World'
-});
-
-/* or as file path
+/* hello.ejs
+{{= hello, world}}
+*/
 
 result = engine.render('hello.ejs', {
     hello: 'Hello',
     world: 'World'
 });
-*/
 
 // Will output:
 // HelloWorld
 ```
-
-`.compile(content[, imports])`
-
-content: string
-
-imports: object
-
-Get the content, execute it and returns the result of the execution. Should be used with the content rendered by an engine with `config.raw = true`. Example:
-```javascript
-engine.compile(result);
-```
 ## Cache Management
+The next 2 methods are available only for Node.JS environment.
 `.precache(source)`
 
-source: object or string
+source: string
 
-The `.precache()` method is used to refresh the content of the source in the cache or to prepare a template for further usage. The `source` parameter is the same from the `.render()` method. Example:
+Adds to the cache the parsed content of the template for future uses. This method is good to use before the templates are rendered, anyway it is called while rendering if the template was not cached. Example:
 ```javascript
-engine.precache({
-    id: 'hello',
-    content: '{{="Good Bye World"}}'
-});
-
-/* or as file path
-
 engine.precache('hello.ejs');
-*/
 ```
 
-`.clear([id])`
+`.clear([source])`
 
-id: string
+source: string
 
-If `id` parameter is defined then the specified source will be removed from the cache. If `id` is not defined then all the sources will be removed from the cache. Example:
+If `source` parameter is defined then the specified source will be removed from the cache else all the sources will be removed from the cache. Example:
 ```javascript
-engine.clearCache('hello');
+engine.clear('hello.ejs');
 ```
 ## Template Syntax
 The syntax below will be defined only for default open and close tags.
@@ -114,9 +90,9 @@ or
 
 	<% include('header.ejs') %>
 ## Client-Side
-On the client-side simpleT can be used from `utils/simplet.js` file inside the module folder, the content of this file is available using `simplet.client` as a Buffer. The only difference from the server-side version is that instead of files HTML elements are used and their id should be provided. Example:
+On the client-side simpleT can be used from `simplet.client` as a Buffer. The only difference from the server-side version is that instead of files strings are used, and these are not cached. Example:
 
-	<script src="../utils/simplet.js"></script>
+	<script src="/path/to/simplet.js"></script>
 	<script id="include" type="text/simplet">
 		<%= add + 1 %><br>
 	</script>

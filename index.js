@@ -1,271 +1,350 @@
-var fs = require('fs');
-var path = require('path');
+// Check for Node.JS environment
+if (typeof module !== 'undefined') {
+	var fs = require('fs');
+}
 
 // Parses the content and returns executable result
 function parse(content, open, close) {
-    'use strict';
+	'use strict';
 
-    var buffer = '',
-        closeLength = close.length,
-        code = false,
-        currentChar,
-        currentSec,
-        expression = false,
-        index = 0,
-        openLength = open.length,
-        previousChar = '',
-        result = '',
-        stop = '',
-        whitespace = '';
+	var buffer = '',
+		code = false,
+		current = content.charAt(0),
+		expression = false,
+		index = 0,
+		previous = '',
+		result = '',
+		stop = '',
+		whitespace = '';
 
-    // Parse char by char
-    while (currentChar = content.charAt(index)) {
+	// Parse char by char
+	while (current) {
 
-        // Found code delimiter
-        if (content.substr(index, openLength) === open) {
-            index += openLength;
-            currentChar = content.charAt(index);
-            code = true;
+		// Found code delimiter
+		if (content.substr(index, open.length) === open) {
+			index += open.length;
+			code = true;
+			current = content.charAt(index);
 
-            // Found print statement
-            if (currentChar === '=') {
+			// Concatenate the buffer if it exists
+			if (buffer) {
+				result += 'print("' + buffer + '");';
+				buffer = '';
+			}
 
-                // Add whitespace for print statements
-                if (whitespace) {
-                    result += '_result+=\'' + whitespace + '\';';
-                }
+			// Check for include and print statements
+			if (current === '=') {
+				result += 'print(';
 
-                result += 'print(';
-                expression = true;
-                code = false;
-                index++;
+				// Print the whitespace
+				if (whitespace) {
+					result += '"' + whitespace + '",';
+				}
 
-            // Found include statement
-            } else if (currentChar === '#') {
-                result += 'include(';
-                expression = true;
-                index++;
-            }
+				code = false;
+				expression = true;
+				index++;
+				current = content.charAt(index);
+			} else if (current === '#') {
 
-            // Get the chars of the code
-            while ((currentChar = content.charAt(index)) && content.substr(index, closeLength) !== close) {
+				// Print the whitespace
+				if (whitespace) {
+					result += 'print("' + whitespace + '");';
+				}
 
-                // Take the close tags in javascript string
-                if ((currentChar === '\'' || currentChar === '"') && previousChar !== '\\') {
-                    stop = currentChar;
-                    result += currentChar;
-                    index++;
-                    while ((currentChar = content.charAt(index)) && currentChar !== stop && previousChar !== '\\') {
-                        result += currentChar;
-                        previousChar = currentChar;
-                        index++;
-                    }
-                }
+				expression = true;
+				index++;
+				current = content.charAt(index);
+				result += 'include(';
+			}
 
-                result += currentChar;
-                previousChar = currentChar;
-                index++;
-            }
+			// Get the chars of the code
+			while (current && content.substr(index, close.length) !== close) {
 
-            // Check for unexpected end of line
-            if (!currentChar) {
-                throw 'Unexpected end of template';
-            }
+				// Ignore the close tags in embedded embedded javascript code
+				if ((current === '\'' || current === '"') && previous !== '\\') {
+					index++;
+					result += current;
+					stop = current;
+					current = content.charAt(index);
 
-            // Close open expression if found
-            if (expression) {
-                result += ')';
-                expression = false;
-            }
+					// Get the chars of the strings in the 
+					while (current && current !== stop && previous !== '\\') {
+						index++;
+						previous = current;
+						result += current;
+						current = content.charAt(index);
+					}
+				}
 
-            result += '\n';
-            index += closeLength;
-            whitespace = '';
+				index++;
+				previous = current;
+				result += current;
+				current = content.charAt(index);
+			}
 
-        // Found other chars
-        } else if (currentChar) {
+			// Check for unexpected end of line
+			if (!current) {
+				throw 'Unexpected end of template';
+			}
 
-            // While no code found
-            while ((currentChar = content.charAt(index)) && (currentSec = content.substr(index, openLength)) !== open) {
+			// Close open expression if found
+			if (expression) {
+				result += ');';
+				expression = false;
+			} else {
+				result += '\n';
+			}
 
-                // Ignore whitespace on the lines with code
-                if (currentChar === ' ' || currentChar === '\t') {
-                    whitespace += currentChar;
+			index += close.length;
+			whitespace = '';
 
-                // Escape for end of line
-                } else if (currentChar === '\n' || currentSec === '\r\n' || currentChar === '\r' || currentChar === '\u2028' || currentChar === '\u2029') {
+		// Found other chars
+		} else {
 
-                    // Add whitespace if not after code
-                    if (code) {
-                        whitespace = '';
-                    } else {
-                        buffer += whitespace + '\\n';
-                    }
+			// Ignore whitespace on the lines with code
+			if (current === ' ' || current === '\t') {
+				whitespace += current;
 
-                    // If Windows end of line
-                    if (currentSec === '\r\n') {
-                        index++;
-                    }
+			// Escape for end of line
+			} else if (current === '\n' || current === '\r' || current === '\u2028' || current === '\u2029') {
 
-                // Get all other chars
-                } else {
+				// Add whitespace if not after code
+				if (code) {
+					whitespace = '';
+				} else {
+					buffer += whitespace + '\\n';
+				}
 
-                    buffer += whitespace;
-                    whitespace = '';
-                    code = false;
+				// If Windows end of line
+				if (current === '\r' && content.charAt(index + 1) === '\n') {
+					index++;
+				}
 
-                    // Escape for "'" and "\"
-                    if (currentChar === '\'' || currentChar === '\\') {
-                        buffer += '\\';
-                    }
+			// Get all other chars
+			} else {
 
-                    buffer += currentChar;
-                }
+				buffer += whitespace;
+				whitespace = '';
+				code = false;
 
-                index++;
-            }
+				// Escape for quote and backslash
+				if (current === '"' || current === '\\') {
+					buffer += '\\';
+				}
 
-            // Concatenate the buffer if it exists
-            if (buffer) {
-                result += '_result+=\'' + buffer + '\';';
-                buffer = '';
-            }
-        }
-    }
+				buffer += current;
+			}
 
-    return result;
+			index++;
+		}
+
+		// Get next character
+		current = content.charAt(index);
+	}
+
+	// Concatenate the buffer if it exists
+	if (buffer) {
+		result += 'print("' + buffer + '");';
+		buffer = '';
+	}
+
+	return result;
 }
 
-var simplet = module.exports = function (config) {
-    'use strict';
+// SimpleT prototype constructor
+var simplet = function (config) {
+	'use strict';
 
-    // Ignore new keyword
-    if (!(this instanceof simplet)) {
-        return new simplet(config);
-    }
+	// Call a new instance if it is not
+	if (!(this instanceof simplet)) {
+		return new simplet(config);
+	}
 
-    // Set up the engine configuration
-    config = config || {};
+	// Set up the engine configuration
+	config = config || {};
 
-    Object.defineProperties(this, {
-        cache: {
-            value: {}
-        },
-        close: {
-            value: config.close || '%>'
-        },
-        globals: {
-            value: config.globals || {}
-        },
-        open: {
-            value: config.open || '<%'
-        },
-        raw: {
-            value: config.raw || false
-        }
-    });
+	Object.defineProperties(this, {
+		cache: {
+			value: {}
+		},
+		close: {
+			value: config.close || '%>'
+		},
+		extension: {
+			value: config.extension || ''
+		},
+		folder: {
+			value: config.folder || ''
+		},
+		globals: {
+			value: config.globals || {}
+		},
+		open: {
+			value: config.open || '<%'
+		}
+	});
+
+	// Add the leading dot for extension
+	if (this.extension && this.extension.charAt(0) !== '.') {
+		this.extension = '.' + this.extension;
+	}
+
+	// Add the ending slash for folder path
+	if (this.folder && this.folder.charAt(this.folder.length - 1) !== '/') {
+		this.folder += '/';
+	}
 };
 
 // Removes sources from cache or clears the cache completely
 simplet.prototype.clear = function (source) {
-    'use strict';
-    if (source) {
-        delete this.cache[source];
-    } else {
-        this.cache = {};
-    }
+	'use strict';
+
+	// Delete specific cache if defined
+	if (source) {
+
+		// Remove the leading slash from the source
+		if (this.folder && source.charAt(0) === '/') {
+			source = source.substr(1);
+		}
+
+		// Generate the absolute path to the source and remove it
+		source = this.folder + source + this.extension;
+		delete this.cache[source];
+	} else {
+		this.cache = {};
+	}
 };
 
-// Compiles the raw content and requrns the result
-simplet.prototype.compile = function (content, imports) {
-    'use strict';
-    var i,
-        parameters = [],
-        values = [];
-
-    // Add global values from the template engine
-    for (i in this.globals) {
-        parameters.push(i);
-        values.push(this.globals[i]);
-    }
-
-    // Populate the parameters and the values for the executable frunction
-    for (i in imports) {
-        parameters.push(i);
-        values.push(imports[i]);
-    }
-
-    return new Function(parameters.join(), content).apply(this, values);
-};
-
-// Cache the source for further usage
+// Cache the file content for future uses
 simplet.prototype.precache = function (source) {
-    'use strict';
-    var cache,
-        content,
-        id,
-        that = this;
+	'use strict';
 
-    // Get the identifier and the content of the template
-    if (typeof source === 'string') {
-        id = source;
-        try {
-            content = fs.readFileSync(source, 'utf8');
-            fs.watch(source, {
-                persistent: false
-            }, function (event, filename) {
-                if (event === 'rename') {
-                    this.close();
-                    delete that.cache[id];
-                    return;
-                }
+	var content,
+		that = this;
 
-                content = new Buffer(0);
-                fs.ReadStream(source).on('readable', function () {
-                    content = Buffer.concat([content, this.read()]);
-                }).on('end', function () {
-                    that.cache[id] = parse(content.toString(), that.open, that.close);
-                });
-            });
-        } catch (error) {
-            console.log('\nsimpleT: can not read source "' + source + '"\n' + error.message + '\n');
-            return;
-        }
-    } else {
-        id = source.id;
-        content = source.content;
-    }
+	// Remove the leading slash from the source
+	if (this.folder && source.charAt(0) === '/') {
+		source = source.substr(1);
+	}
 
-    // Try to parse content
-    try {
-        cache = parse(content, this.open, this.close);
+	// Generate the absolute path to the source
+	source = this.folder + source + this.extension;
 
-        // Cache only if identifier is provided
-        if (id) {
-            this.cache[id] = cache;
-        }
+	// Read and parse the content
+	if (!this.cache[source]) {
+		this.cache[source] = parse(fs.readFileSync(source, 'utf8'), this.open, this.close);
 
-        return cache;
-    } catch (error) {
-        console.log('\nsimpleT: Unexpected end of template in source "' + id + '"\n');
-        return;
-    }
+		// Create a file watcher
+		fs.watch(source, {
+			persistent: false
+		}, function (event) {
+			if (event === 'rename') {
+				this.close();
+				delete that.cache[source];
+				return;
+			}
+
+			content = '';
+			fs.ReadStream(source, {
+				encoding: 'utf8'
+			}).on('readable', function () {
+				content += this.read();
+			}).on('end', function () {
+				that.cache[source] = parse(content, this.open, this.close);
+			});
+		});
+	}
+
+	return this.cache[source];
 };
 
 // Render templates from strings or files
 simplet.prototype.render = function (source, imports) {
-    'use strict';
+	'use strict';
 
-    var id = typeof source === 'string' ? source : source.id,
-        executable,
-        result = this.cache[id] || this.precache(source);
+	var i,
+		parameters = [],
+		result = '',
+		that = this,
+		values = [];
 
-    // Prepare the executable string
-    executable = 'var _result=\'\',include=function(file,imports){_result+=this.render(\'' + (id ? path.dirname(id) : path.dirname(module.parent.filename)) + '\'+\'/\'+file,imports)}.bind(this),print=function(){var result=\'\';for(var i=0,n=arguments.length;i<n;i++)if(typeof arguments[i]===\'string\'||(arguments[i] instanceof String))result+=arguments[i];else result+=JSON.stringify(arguments[i]);for(var i=0,n=result.length;i<n;i++)if(result.charAt(i)===\'&\'||result.charAt(i)===\'<\'||result.charAt(i)===\'>\')result=result.substring(0,i)+\'&#\'+result.charCodeAt(i)+\';\'+result.substring(i+1),i+=4,n+=4;_result+=result};' + result + ';\nreturn _result';
+	// Prepare the source
+	try {
+		if (typeof module === 'undefined') {
+			source = parse(source, this.open, this.close);
+		} else {
+			source = this.precache(source);
+		}
+	} catch (error) {
+		console.log('simpleT: can not parse source "' + source + '"');
+		console.log(error.message + '\n');
+		return;
+	}
 
-    // Return raw content if the engine is configured
-    return this.raw ? executable : this.compile(executable, imports);
+	// Includes content from other sources
+	function include(source, imports) {
+
+		// Check for Node.JS environment
+		if (typeof module !== 'undefined') {
+			source = module.parent.filename.substr(0, module.parent.filename.lastIndexOf('/') + 1) + source;
+		}
+
+		result += that.render(source, imports);
+	}
+
+	// Adds values to the result
+	function print() {
+
+		var index,
+			length,
+			string = '';
+
+		// Stringify non-string parameters
+		for (index = 0, length = arguments.length; index < length; index++) {
+			if (typeof arguments[index] === 'string') {
+				string += arguments[index];
+			} else {
+				string += JSON.stringify(arguments[index]);
+			}
+		}
+
+		result += string;
+	}
+
+	imports = imports || {};
+
+	// Add global values from the template engine
+	for (i in this.globals) {
+		if (!imports[i]) {
+			imports[i] = this.globals[i];
+		}
+	}
+
+	// Do not overwrite include and print functions
+	imports.include = include;
+	imports.print = print;
+
+	// Populate the parameters and the values for the executable function
+	for (i in imports) {
+		parameters.push(i);
+		values.push(imports[i]);
+	}
+
+	// The interpreted function
+	new Function(parameters.join(), source).apply(null, values);
+	return result;
 };
 
-// Public the content for client side template engine
-module.exports.client = fs.readFileSync(__dirname + '/utils/simplet.js');
+// Check for Node.JS environment
+if (typeof module !== 'undefined') {
+
+	// Export a new simplet instance
+	module.exports = function (config) {
+		'use strict';
+		return new simplet(config);
+	};
+
+	// Public the content for client side template engine
+	module.exports.client = fs.readFileSync(__filename);
+}

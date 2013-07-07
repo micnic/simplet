@@ -1,3 +1,11 @@
+## 0.1.2
+- Improved parsing algorithm
+- Unified version for browser and Node.JS
+- Removed HTML escaping in favor of print extending
+- Removed `.compile()` method for simplicity and performance
+- In Node.JS the engine renders files, the browsers - strings
+- Bugfixes
+
 ## 0.1.1
 - Added CHANGELOG.md
 - Added dynamic caching

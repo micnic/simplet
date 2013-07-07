@@ -9,6 +9,6 @@ var engine = simplet({
 	}
 });
 
-setInterval(function () {
-	console.log(engine.render('test.html.ejs'));
-}, 1000);
+console.log(engine.render('test.html.ejs', {
+	test: 2
+}));
