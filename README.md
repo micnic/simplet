@@ -1,10 +1,12 @@
-# simpleT 0.1.2
+<img src="https://raw.github.com/micnic/simpleT/master/logo.png"/>
+
+# 0.2.0
 
 simpleT is a simple template engine for Node.JS and web browsers that has some special features:
 
 - Simple structure with minimum configuration
 - Embedded JavaScript support
-- Client-side support
+- [Client-side support](https://github.com/micnic/simpleT/releases)
 - High performance
 - Customizable code delimiters
 - Global values injection
@@ -16,40 +18,41 @@ simpleT is a simple template engine for Node.JS and web browsers that has some s
 #### Any feedback is welcome!
 
 #### More simple modules:
-- [simpleR](http://micnic.github.com/simpleR/)
-- [simpleS](http://micnic.github.com/simpleS/)
+- [recache](https://www.npmjs.com/package/recache)
+- [simpleR](https://www.npmjs.com/package/simpler)
+- [simpleS](https://www.npmjs.com/package/simples)
 
+### [Changelog](https://github.com/micnic/simpleT/wiki/Changelog)
 #### [Documentation](https://github.com/micnic/simpleT/wiki/Documentation)
 
 ## Instalation
 
-	npm install simplet
+    npm install simplet
 
 ## Usage
 
 ```javascript
 var simplet = require('simplet');
 
-/* ***template.ejs***
+var engine = simplet();
 
-Hello <% print(name) %>
+// Create the template
+engine.template('template.ejs', 'Hello, <% print(name) %>');
 
-*/
-
-var fileEngine = simplet();
-
-fileEngine.render('template.ejs', {
-    name: 'me'
+// Render the template
+engine.render('template.ejs', {
+    name: 'simpleT'
 });
 
-/* ***output***
+//=> Hello, simpleT
 
-Hello me
-
-*/
+// Remove the template
+engine.clear('template.ejs');
 ```
 
 ## Syntax
-* code isolation `<% code %>`
-* data printing `<%= data %>` or `<% print(data) %>`
-* includes `<%# template %>` or `<% include(template) %>`
+* code tag `<% code %>`
+* print tag `<%- data %>` or `<% print(data) %>`
+* print tag with XML escape `<%= data %>` or `<% printx(data) %>`
+* include tag `<%@ template %>` or `<% include(template) %>`
+* comment tag `<%# code %>`

@@ -1,3 +1,10 @@
+## 0.2.0
+- Added `recache` for dynamic caching
+- Added syntax for XML escaped strings (`printx()`)
+- Added syntax for commented code sections
+- Modified syntax for `include()` and `print()` functions
+- Modified the whole API, which is not compatible with older versions, read docs
+
 ## 0.1.2
 - Improved parsing algorithm
 - Unified version for browser and Node.JS

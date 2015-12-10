@@ -3,16 +3,21 @@ var simplet = require('simplet');
 ```
 
 ## New simpleT Instance
-`simplet(config)`
+`simplet([directory, options, callback])`
 
-config: object
+directory: string
 
-simpleT uses a configuration object to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to remove a template from the cache '.clear()' method should be used. Example:
+options: object
+
+callback: function(engine: object)
+
+simpleT uses a configuration object to set up the template engine. The configuration is applied on all templates rendered using this instance of simpleT. All templates are cached, to remove a template from the cache '.clear()' method should be used. In the server-side version of simpleT two additional arguments can be added, these are `directory` and `callback`, by providing these arguments simpleT will, internally, read, cache the files, and compile the templates for further use, the `callback` function will be triggered when all files are ready for usage. In `options` argument custom syntax for tags can be specified by modifying the `open` and `close` properties, which by default are `<%` and `%>`, another option is `extension`, it adds a suffix to the file names stored in the cache, this is useful, mainly in the server-side version and allow to not specify the extension while requiring templates. Each instance of simpleT has a context of values which is applied to all rendered templates, these values are defined in the `globals` options, functions have access to the internal functions like `this.include()`, `this.print()` and `this.printx()`. There is also a debug mode, in which templates more informations in case there are some errors, this mode is enabled by the option `debug`. Debug mode should be used only in the development process, because the templates compiled in debug mode are slower in compilation and execution.
+
 ```javascript
 var engine = simplet({
     close: '}}',		// The close tag of the templates, default is '%>'
+    debug: true,		// Enable debug mode, default is false
     extension: 'ejs',	// The name of the extension which will be added to the names of the templates
-    folder: 'views',	// The name of the folder, in which the templates are placed
     globals: {			// Define global values and functions for rendered templates
         pi: 3.14,
         increment: function (x) {
@@ -23,20 +28,88 @@ var engine = simplet({
 });
 ```
 
+## Template Syntax
+
+The syntax below will be defined only for default open and close tags.
+
+### Code Tag
+
+To isolate the code from the rest of the content of the template the open and the close tags are used.
+
+```
+<% if (true) { %>		||		if (true) {
+<h1>Hello World</h1>	|| =>	print('<h1>Hello World</h1>');
+<% } %>					||		}
+```
+
+### Print Tag
+
+To print some data it is necessary to use the open tag followed by an `-` or `=` symbol. The `print()` function is used to print the characters as they are, while the `printx()` function will print the characters and will escape XML characters like `"`, `&`, `'`, `<` and `>`
+
+```
+// Simple print
+<h1><%- 'Hello World' %></h1>			||
+										||
+// or									|| => print('<h1>');print('Hello World');print('</h1>');
+										||
+<h1><% print('Hello World') %></h1>		||
+
+// Print with XML escape
+<h1><%= 'Hello World' %></h1>			||
+										||
+// or									|| => print('<h1>');printx('Hello World');print('</h1>');
+										||
+<h1><% printx('Hello World') %></h1>	||
+```
+
+### Include Tag
+
+To insert another template inside the current template it is necessary to use the open tag followed by an `@` symbol. The path to the included template has to be defined relative to the path of the current template.
+
+```
+<%@ '/path/to/template.ejs' %>			||
+										||
+// or									|| => include('path/to/template.ejs');
+										||
+<% include('/path/to/template.ejs') %>	||
+```
+
+### Comment Tag
+
+To quickly remove any code block from the compilation result the comment tag is used, open tag followed by an `#` symbol.
+
+```
+<h1><%# print('This will not be compiled') %>Hello World</h1>	|| => print('<h1>Hello World</h1>');
+```
+
+## Template Creation
+
+`.template(location, content)`
+
+location: string
+
+content: string
+
+The `.template()` method is used to compile and cache the templates internally. The location should be provided in a posix format to allow relative localization of templates.
+
+```js
+engine.template('hello.ejs', '<%- hello, world %>');
+```
+
 ## Template Rendering
 `.render(source[, imports])`
 
-source: object or string
+source: string
 
 imports: object
 
-The `.render()` method is used to render the provided templates, on the server-side the source is the path to the file, on the client-side - string. It is possible to define some special values inside the template by adding these as attributes to the imports object. Example:
-```javascript
-/* hello.ejs
-{{= hello, world}}
-*/
+The `.render()` method is used to render the cached templates. It is possible to define some special values inside the template by adding these as attributes to the imports object.
 
-result = engine.render('hello.ejs', {
+```js
+// hello.ejs
+// <%- hello, world %>
+
+engine.render('hello.ejs', {
     hello: 'Hello',
     world: 'World'
 });
@@ -44,67 +117,15 @@ result = engine.render('hello.ejs', {
 // Will output:
 // HelloWorld
 ```
-## Cache Management
-The next 2 methods are available only for Node.JS environment.
-`.precache(source)`
 
-source: string
+## Template Removal
 
-Adds to the cache the parsed content of the template for future uses. This method is good to use before the templates are rendered, anyway it is called while rendering if the template was not cached. Example:
-```javascript
-engine.precache('hello.ejs');
-```
+`.clear(location)`
 
-`.clear([source])`
+location: string
 
-source: string
+To remove a template from the internal cache, just provide its location to the `.clear()` method.
 
-If `source` parameter is defined then the specified source will be removed from the cache else all the sources will be removed from the cache. Example:
-```javascript
-engine.clear('hello.ejs');
-```
-## Template Syntax
-The syntax below will be defined only for default open and close tags.
-### Code Isolation
-To isolate the code from the rest of the content of the template the open and the close tags are used, example:
+## Client-Side version
 
-	<% if (true) { %>
-	<h1>Hello World</h1>
-	<% } %>
-
-### Data Printing
-To print some data it is necessary to use the open tag followed by an `=` symbol, the data and the close tag or using the `print()` function inside the code isolation, this function will escape automatically the HTML characters, example:
-
-	<%= 'HelloWorld'.toLowerCase() %>
-
-or
-
-	<% print('HelloWorld'.toLowerCase()) %>
-
-### Includes
-To insert another template inside the current template it is necessary to use the open tag followed by an `#` symbol, the path to the template and the close tag or using the `include()` function inside the code isolation, example:
-
-	<%# 'header.ejs' %>
-
-or
-
-	<% include('header.ejs') %>
-## Client-Side
-On the client-side simpleT can be used from `simplet.client` as a Buffer. The only difference from the server-side version is that instead of files strings are used, and these are not cached. Example:
-
-	<script src="/path/to/simplet.js"></script>
-	<script id="include" type="text/simplet">
-		<%= add + 1 %><br>
-	</script>
-	<script id="template" type="text/simplet">
-		1<br>
-		<%# 'include', {add: 1} %>
-		<% print(3) %>
-	</script>
-	<script>
-		window.onload = function () {
-			var engine = simplet({});
-			document.getElementById('result').innerHTML = engine.render('template', {});
-		}
-		// 'result' is the id of an HTML element in which will be added the  result content of the template
-	</script>
+For the browser there is a [simplified version](https://github.com/micnic/simpleT/releases) of simpleT which needs only `options` parameter to create a new instance: `simplet([options])`. This version does not precompile any template and does not need any directory of callback defined, it has the same features as the server-side version and is configured in the same way.

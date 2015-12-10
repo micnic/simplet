@@ -1,350 +1,534 @@
-// Check for Node.JS environment
-if (typeof module !== 'undefined') {
-	var fs = require('fs');
-}
+'use strict';
 
-// Parses the content and returns executable result
-function parse(content, open, close) {
-	'use strict';
+var events = require('events'),
+	recache = require('recache');
+
+// SimpleT prototype constructor
+var simplet = function (directory, options, callback) {
+
+	var close = '%>',
+		debug = false,
+		extension = 'ejs',
+		globals = {},
+		open = '<%',
+		that = this;
+
+	// Set default arguments
+	if (typeof directory === 'string') {
+		if (typeof options === 'function') {
+			callback = options;
+			options = {};
+		}
+	} else if (typeof directory === 'object') {
+		if (typeof options === 'function') {
+			callback = options;
+		}
+		options = directory;
+		directory = '';
+	} else if (typeof directory === 'function')  {
+		callback = directory;
+		options = {};
+		directory = '';
+	} else if (!options || typeof options !== 'object') {
+		options = {};
+	}
+
+	// Get a valid opening template separator
+	if (options.open && typeof options.open === 'string') {
+		open = options.open;
+	}
+
+	// Get a valid closing template separator
+	if (options.close && typeof options.close === 'string') {
+		close = options.close;
+	}
+
+	// Get a valid extension
+	if (options.extension && typeof options.extension === 'string') {
+		extension = options.extension;
+	}
+
+	// Get debug option value
+	if (options.debug === true) {
+		debug = true;
+	}
+
+	// Copy global values
+	if (options.globals && typeof options.globals === 'object') {
+		Object.keys(options.globals).forEach(function (key) {
+			globals[key] = options.globals[key];
+		});
+	}
+
+	// Set options for the engine
+	Object.defineProperties(this, {
+		close: {
+			value: close
+		},
+		container: {
+			value: {}
+		},
+		debug: {
+			value: debug
+		},
+		extension: {
+			value: extension
+		},
+		globals: {
+			value: globals
+		},
+		open: {
+			value: open
+		}
+	});
+
+	// Check for cache
+	if (directory && typeof directory === 'string') {
+		recache(directory).on('error', function (error) {
+			that.emit('error', error);
+		}).on('ready', function () {
+			if (typeof callback === 'function') {
+				callback(that);
+			}
+		}).on('file', function (file) {
+			that.template(file.location, file.content.toString());
+		}).on('change', function (element) {
+			if (element.stats.isFile()) {
+				that.template(element.location, element.content.toString());
+			}
+		}).on('unlink', function (element) {
+			if (element.stats.isFile()) {
+				that.clear(element.location);
+			}
+		});
+	} else if (typeof callback === 'function') {
+		callback(this);
+	}
+};
+
+// The list of XML characters that must be escaped
+simplet.escapeXMLChars = {
+	'"': '&quot;',
+	'&': '&amp;',
+	'\'': '&apos;',
+	'<': '&lt;',
+	'>': '&gt;'
+};
+
+// Regular expression to match escaped XML characters
+simplet.escapeXMLRe = /[&<>'"]/g;
+
+// Escapes XML characters from the provided string
+simplet.escapeXML = function (string) {
+	return string.replace(simplet.escapeXMLRe, function (chr) {
+		return simplet.escapeXMLChars[chr];
+	});
+};
+
+simplet.catchError = function (template, debug, error) {
+
+	var result;
+
+	if (debug && !(error instanceof SyntaxError)) {
+		var start = Math.max(0, Math.min(error.line - 2, template.length - 5)),
+			length = String(start + 5).length;
+
+		result = template.slice(start, start + 5).map(function (line, index) {
+
+			var current = start + index + 1,
+				result = '';
+
+			if (current === error.line) {
+				result += ' > ';
+			} else {
+				result += '   ';
+			}
+
+			if (String(current).length < length) {
+				result += ' ';
+			}
+
+			result += current + ' | ' + line.slice(0, 80 - length - 3);
+
+			return result;
+		}).join('\n');
+	}
+
+	if (result) {
+		result = error.name + ': ' + error.message + '\n' + result;
+	} else if (debug) {
+		result = error.name + ': ' + error.message;
+	} else {
+		result = 'An error occured, enable debug mode for expanded result';
+	}
+
+	return result;
+};
+
+simplet.normalizePath = function (location, extension) {
+
+	var isAbsolute = (location[0] === '/'),
+		index = 0,
+		parts = location.split('/'),
+		part = parts[0],
+		length = parts.length,
+		result = [],
+		trailingSlash = (location && (location[location.length - 1] === '/'));
+
+	// Loop through location parts
+	while (index < length) {
+
+		// Skip empty or dir parts
+		if (part && part !== '.') {
+			if (part === '..') {
+				if (result.length && result[result.length - 1] !== '..') {
+					result.pop();
+				} else if (!isAbsolute) {
+					result.push('..');
+				}
+			} else {
+				result.push(part);
+			}
+		}
+
+		// Get the index of the next part
+		index++;
+
+		// Get the next part
+		part = parts[index];
+	}
+
+	// Join the parts to form the normalized location
+	location = result.join('/');
+
+	// Check for absolute location or empty location
+	if (!location && !isAbsolute) {
+		location = '.';
+	}
+
+	// Add the trailing slash if needed
+	if (location && trailingSlash) {
+		location += '/';
+	}
+
+	// Add the root slash for absolute location
+	if (isAbsolute) {
+		location = '/' + location;
+	}
+
+	// Add extension to the location string
+	if (location.substr(- extension.length - 1) !== '.' + extension) {
+		location += '.' + extension;
+	}
+
+	return location;
+};
+
+// Inherit from events.EventEmitter
+simplet.prototype = Object.create(events.EventEmitter.prototype, {
+	constructor: {
+		value: simplet
+	}
+});
+
+// Remove the template from the provided location
+simplet.prototype.clear = function (location) {
+	if (location && typeof location === 'string') {
+		delete this.container[location];
+	}
+};
+
+// Render templates from files
+simplet.prototype.render = function (source, imports) {
+
+	var args = [],
+		context = {},
+		extension = this.extension,
+		globals = this.globals,
+		key = null,
+		result = '',
+		template = null,
+		that = this,
+		values = [];
+
+	// Includes content from other sources
+	context.include = function (location) {
+
+		// Check for relative location
+		if (location[0] !== '/') {
+			location = source.substr(0, source.lastIndexOf('/') + 1) + location;
+		}
+
+		// Normalize location and add extension
+		location = simplet.normalizePath(location, extension);
+
+		// Render the template from the provided location
+		result += that.render(location, imports);
+	};
+
+	// Adds values to the result
+	context.print = function () {
+
+		var index = 0,
+			length = arguments.length;
+
+		// Loop through all arguments
+		while (index < length) {
+
+			// Stingify non-string arguments and concatenate all arguments
+			if (typeof arguments[index] === 'string') {
+				result += arguments[index];
+			} else {
+				result += JSON.stringify(arguments[index]);
+			}
+
+			// Get the index of the next argument
+			index++;
+		}
+	};
+
+	// Adds values to the result but escapes XML characters
+	context.printx = function () {
+
+		var index = 0,
+			length = arguments.length;
+
+		// Loop through all arguments
+		while (index < length) {
+
+			// Stingify non-string arguments and concatenate all arguments
+			if (typeof arguments[index] === 'string') {
+				result += simplet.escapeXML(arguments[index]);
+			} else {
+				result += simplet.escapeXML(JSON.stringify(arguments[index]));
+			}
+
+			// Get the index of the next argument
+			index++;
+		}
+	};
+
+	// Set imports default object
+	if (!imports || typeof imports !== 'object') {
+		imports = {};
+	}
+
+	// Add the global values to the context
+	for (key in globals) {
+		if (!imports[key] && !context[key]) {
+			if (typeof globals[key] === 'function') {
+				context[key] = globals[key].bind(context);
+			} else {
+				context[key] = globals[key];
+			}
+		}
+	}
+
+	// Add the imported values to the context
+	for (key in imports) {
+		if (!context[key]) {
+			if (typeof imports[key] === 'function') {
+				context[key] = imports[key].bind(context);
+			} else {
+				context[key] = imports[key];
+			}
+		}
+	}
+
+	// Prepare the arguments and their values
+	for (key in context) {
+		args.push(key);
+		values.push(context[key]);
+	}
+
+	// Get the template object
+	template = this.container[simplet.normalizePath(source, extension)];
+
+	// Execute the template body
+	if (template) {
+		try {
+			Function(args, template.compiled).apply(context, values);
+		} catch (error) {
+			result = simplet.catchError(template.original, this.debug, error);
+		}
+	} else if (this.debug) {
+		result = 'Template "' + source + '" was not found';
+	} else {
+		result = 'Template not found';
+	}
+
+	return result;
+};
+
+// Create a new template
+simplet.prototype.template = function (location, content) {
 
 	var buffer = '',
-		code = false,
-		current = content.charAt(0),
-		expression = false,
+		close = this.close,
+		csize = close.length,
+		current = content[0],
 		index = 0,
-		previous = '',
+		line = 1,
+		open = this.open,
+		osize = open.length,
 		result = '',
-		stop = '',
-		whitespace = '';
+		skip = false,
+		statement = false;
+
+	// Add the line index at the beginning for error handling in debug mode
+	if (this.debug) {
+		result += 'var _l_=1;try{';
+	}
 
 	// Parse char by char
 	while (current) {
 
 		// Found code delimiter
-		if (content.substr(index, open.length) === open) {
-			index += open.length;
-			code = true;
-			current = content.charAt(index);
+		if (content.substr(index, osize) === open) {
+
+			// Skip open delimiter and get the next character
+			index += osize;
+			current = content[index];
 
 			// Concatenate the buffer if it exists
 			if (buffer) {
-				result += 'print("' + buffer + '");';
+				result += 'print(\'' + buffer + '\');';
 				buffer = '';
 			}
 
+			// Add the line index before the code block
+			if (this.debug && line > 1) {
+				result += '_l_=' + line + ';';
+			}
+
 			// Check for include and print statements
-			if (current === '=') {
-				result += 'print(';
+			if (current === '-' || current === '=' || current === '@') {
 
-				// Print the whitespace
-				if (whitespace) {
-					result += '"' + whitespace + '",';
+				// Prepare the print expression
+				if (current === '-') {
+					result += 'print(';
+				} else if (current === '=') {
+					result += 'printx(';
+				} else if (current === '@') {
+					result += 'include(';
 				}
 
-				code = false;
-				expression = true;
+				// Set statement flag and get next character
+				statement = true;
 				index++;
-				current = content.charAt(index);
+				current = content[index];
 			} else if (current === '#') {
-
-				// Print the whitespace
-				if (whitespace) {
-					result += 'print("' + whitespace + '");';
-				}
-
-				expression = true;
+				skip = true;
 				index++;
-				current = content.charAt(index);
-				result += 'include(';
+				current = content[index];
 			}
 
-			// Get the chars of the code
-			while (current && content.substr(index, close.length) !== close) {
+			// Get the characterss of the code
+			while (current && content.substr(index, csize) !== close) {
 
-				// Ignore the close tags in embedded embedded javascript code
-				if ((current === '\'' || current === '"') && previous !== '\\') {
-					index++;
-					result += current;
-					stop = current;
-					current = content.charAt(index);
+				// Check for end of line
+				if (['\n', '\r', '\u2028', '\u2029'].indexOf(current) >= 0) {
 
-					// Get the chars of the strings in the 
-					while (current && current !== stop && previous !== '\\') {
-						index++;
-						previous = current;
-						result += current;
-						current = content.charAt(index);
+					// Increment line index in debug mode
+					if (this.debug) {
+						line++;
 					}
+
+					// Check for DOS end of line
+					if (current === '\r' && content[index + 1] === '\n') {
+						index++;
+					}
+
+					// Use only Unix end of line
+					if (!skip) {
+						buffer += '\n';
+					}
+				} else if (!skip) {
+					buffer += current;
 				}
 
+				// Get the next character
 				index++;
-				previous = current;
-				result += current;
-				current = content.charAt(index);
+				current = content[index];
 			}
 
-			// Check for unexpected end of line
-			if (!current) {
-				throw 'Unexpected end of template';
-			}
+			// Trim redundant whitespace
+			result += buffer.trim();
 
-			// Close open expression if found
-			if (expression) {
+			// Close current statement
+			if (statement) {
 				result += ');';
-				expression = false;
+				statement = false;
+			} else if (skip) {
+				skip = false;
 			} else {
 				result += '\n';
 			}
 
-			index += close.length;
-			whitespace = '';
-
-		// Found other chars
+			// Skip the close delimiter and remove whitespace
+			index += csize;
+			buffer = '';
 		} else {
 
-			// Ignore whitespace on the lines with code
-			if (current === ' ' || current === '\t') {
-				whitespace += current;
+			// Get all non-code characters
+			if (['\n', '\r', '\u2028', '\u2029'].indexOf(current) >= 0) {
 
-			// Escape for end of line
-			} else if (current === '\n' || current === '\r' || current === '\u2028' || current === '\u2029') {
-
-				// Add whitespace if not after code
-				if (code) {
-					whitespace = '';
-				} else {
-					buffer += whitespace + '\\n';
+				// Increment line index in debug mode
+				if (this.debug) {
+					line++;
 				}
 
-				// If Windows end of line
-				if (current === '\r' && content.charAt(index + 1) === '\n') {
+				// Use only Unix end of line
+				buffer += '\\n';
+
+				// Check for DOS end of line
+				if (current === '\r' && content[index + 1] === '\n') {
 					index++;
 				}
-
-			// Get all other chars
 			} else {
 
-				buffer += whitespace;
-				whitespace = '';
-				code = false;
-
 				// Escape for quote and backslash
-				if (current === '"' || current === '\\') {
+				if (current === '\'' || current === '\\') {
 					buffer += '\\';
 				}
 
+				// Add current character to the buffer
 				buffer += current;
 			}
 
+			// Get next index
 			index++;
 		}
 
 		// Get next character
-		current = content.charAt(index);
+		current = content[index];
 	}
 
 	// Concatenate the buffer if it exists
 	if (buffer) {
-		result += 'print("' + buffer + '");';
+		result += 'print(\'' + buffer + '\');';
 		buffer = '';
 	}
 
-	return result;
-}
+	// Remove any redundant whitespace in the beginning or the end of the result
+	result = result.trim();
 
-// SimpleT prototype constructor
-var simplet = function (config) {
-	'use strict';
-
-	// Call a new instance if it is not
-	if (!(this instanceof simplet)) {
-		return new simplet(config);
+	// Add the ending for the error handling in debug mode
+	if (this.debug) {
+		result += '}catch(e){throw{line:_l_,message:e.message,name:e.name}}';
 	}
 
-	// Set up the engine configuration
-	config = config || {};
+	// Normalize location
+	location = simplet.normalizePath(location, this.extension);
 
-	Object.defineProperties(this, {
-		cache: {
-			value: {}
-		},
-		close: {
-			value: config.close || '%>'
-		},
-		extension: {
-			value: config.extension || ''
-		},
-		folder: {
-			value: config.folder || ''
-		},
-		globals: {
-			value: config.globals || {}
-		},
-		open: {
-			value: config.open || '<%'
-		}
-	});
-
-	// Add the leading dot for extension
-	if (this.extension && this.extension.charAt(0) !== '.') {
-		this.extension = '.' + this.extension;
-	}
-
-	// Add the ending slash for folder path
-	if (this.folder && this.folder.charAt(this.folder.length - 1) !== '/') {
-		this.folder += '/';
-	}
-};
-
-// Removes sources from cache or clears the cache completely
-simplet.prototype.clear = function (source) {
-	'use strict';
-
-	// Delete specific cache if defined
-	if (source) {
-
-		// Remove the leading slash from the source
-		if (this.folder && source.charAt(0) === '/') {
-			source = source.substr(1);
-		}
-
-		// Generate the absolute path to the source and remove it
-		source = this.folder + source + this.extension;
-		delete this.cache[source];
-	} else {
-		this.cache = {};
-	}
-};
-
-// Cache the file content for future uses
-simplet.prototype.precache = function (source) {
-	'use strict';
-
-	var content,
-		that = this;
-
-	// Remove the leading slash from the source
-	if (this.folder && source.charAt(0) === '/') {
-		source = source.substr(1);
-	}
-
-	// Generate the absolute path to the source
-	source = this.folder + source + this.extension;
-
-	// Read and parse the content
-	if (!this.cache[source]) {
-		this.cache[source] = parse(fs.readFileSync(source, 'utf8'), this.open, this.close);
-
-		// Create a file watcher
-		fs.watch(source, {
-			persistent: false
-		}, function (event) {
-			if (event === 'rename') {
-				this.close();
-				delete that.cache[source];
-				return;
-			}
-
-			content = '';
-			fs.ReadStream(source, {
-				encoding: 'utf8'
-			}).on('readable', function () {
-				content += this.read();
-			}).on('end', function () {
-				that.cache[source] = parse(content, this.open, this.close);
-			});
-		});
-	}
-
-	return this.cache[source];
-};
-
-// Render templates from strings or files
-simplet.prototype.render = function (source, imports) {
-	'use strict';
-
-	var i,
-		parameters = [],
-		result = '',
-		that = this,
-		values = [];
-
-	// Prepare the source
-	try {
-		if (typeof module === 'undefined') {
-			source = parse(source, this.open, this.close);
-		} else {
-			source = this.precache(source);
-		}
-	} catch (error) {
-		console.log('simpleT: can not parse source "' + source + '"');
-		console.log(error.message + '\n');
-		return;
-	}
-
-	// Includes content from other sources
-	function include(source, imports) {
-
-		// Check for Node.JS environment
-		if (typeof module !== 'undefined') {
-			source = module.parent.filename.substr(0, module.parent.filename.lastIndexOf('/') + 1) + source;
-		}
-
-		result += that.render(source, imports);
-	}
-
-	// Adds values to the result
-	function print() {
-
-		var index,
-			length,
-			string = '';
-
-		// Stringify non-string parameters
-		for (index = 0, length = arguments.length; index < length; index++) {
-			if (typeof arguments[index] === 'string') {
-				string += arguments[index];
-			} else {
-				string += JSON.stringify(arguments[index]);
-			}
-		}
-
-		result += string;
-	}
-
-	imports = imports || {};
-
-	// Add global values from the template engine
-	for (i in this.globals) {
-		if (!imports[i]) {
-			imports[i] = this.globals[i];
-		}
-	}
-
-	// Do not overwrite include and print functions
-	imports.include = include;
-	imports.print = print;
-
-	// Populate the parameters and the values for the executable function
-	for (i in imports) {
-		parameters.push(i);
-		values.push(imports[i]);
-	}
-
-	// The interpreted function
-	new Function(parameters.join(), source).apply(null, values);
-	return result;
-};
-
-// Check for Node.JS environment
-if (typeof module !== 'undefined') {
-
-	// Export a new simplet instance
-	module.exports = function (config) {
-		'use strict';
-		return new simplet(config);
+	// Save the original and the compiled content of the template
+	this.container[location] = {
+		compiled: result,
+		original: content.split(/\r\n|\n|\r|\u2028|\u2029/)
 	};
+};
 
-	// Public the content for client side template engine
-	module.exports.client = fs.readFileSync(__filename);
-}
+// Export a new simpleT instance
+module.exports = function (directory, options, callback) {
+	return new simplet(directory, options, callback);
+};

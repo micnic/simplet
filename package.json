@@ -1,6 +1,6 @@
 {
 	"name": "simplet",
-	"version": "0.1.2",
+	"version": "0.2.0",
 	"description": "Simple Template Engine",
 	"keywords": [
 		"client-side",
@@ -11,10 +11,10 @@
 	],
 	"homepage": "http://micnic.github.io/simpleT",
 	"bugs": {
-		"url": "https://github.com/micnic/simplet/issues",
+		"url": "https://github.com/micnic/simpleT/issues",
 		"email": "micnic90@gmail.com"
 	},
-	"license": "GPL 3",
+	"license": "GPL-3.0",
 	"author": {
 		"name": "Micleusanu Nicu",
 		"email": "micnic90@gmail.com",
@@ -25,7 +25,17 @@
 		"type": "git",
 		"url": "https://github.com/micnic/simpleT"
 	},
+	"scripts": {
+		"test": "tap test/"
+	},
+	"dependencies": {
+		"recache": "0.3.x"
+	},
+	"devDependencies": {
+		"tap": "2.3.x"
+	},
 	"engines": {
+		"iojs": ">=1.0",
 		"node": ">=0.10"
 	}
 }
