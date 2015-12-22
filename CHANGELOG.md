@@ -1,3 +1,8 @@
+## 0.2.1
+- Improved error log message
+- In the server-side version cache only files with the specified extension
+- `print()` and `printx()` functions will print empty string for undefined arguments
+
 ## 0.2.0
 - Added `recache` for dynamic caching
 - Added syntax for XML escaped strings (`printx()`)

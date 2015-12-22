@@ -85,46 +85,62 @@ var simplet = function (options) {
 		});
 	};
 
+	// Catch error and prepare an expanded result if in debug mode
 	simplet.catchError = function (template, debug, error) {
 
-		var result;
+		var end = 0,
+			original = template.original,
+			result = 'Template Error\n',
+			start = 0;
 
-		if (debug && !(error instanceof SyntaxError)) {
-			var start = Math.max(0, Math.min(error.line - 2, template.length - 5)),
-				length = String(start + 5).length;
+		// Prepare final result structure
+		if (debug) {
 
-			result = template.slice(start, start + 5).map(function (line, index) {
+			result += template.location + ':' + (error.line + 1) + '\n\n';
 
-				var current = start + index + 1,
-					result = '';
+			// Check for runtime errors to prepare expanded result
+			if (!(error instanceof SyntaxError)) {
 
-				if (current === error.line) {
-					result += ' > ';
-				} else {
-					result += '   ';
-				}
+				// Prepare the start and the end position of the template fragment
+				start = Math.max(0, Math.min(error.line - 2, original.length - 5));
+				end = Math.min(start + 5, original.length);
 
-				if (String(current).length < length) {
-					result += ' ';
-				}
+				// Get the template fragment and mark the error line
+				result += original.slice(start, end).map(function (line, index) {
 
-				result += current + ' | ' + line.slice(0, 80 - length - 3);
+					var current = start + index,
+						count = String(current + 1);
 
-				return result;
-			}).join('\n');
-		}
+					// Check for the length of the line index to align it
+					if (count.length < String(end).length) {
+						count = ' ' + count;
+					}
 
-		if (result) {
-			result = error.name + ': ' + error.message + '\n' + result;
-		} else if (debug) {
-			result = error.name + ': ' + error.message;
+					// Add the indicator of the error line
+					if (current === error.line) {
+						count = '> ' + count;
+					} else {
+						count = '  ' + count;
+					}
+
+					return count +  ' | ' + line.slice(0, 80 - count.length);
+				}).join('\n') + '\n\n';
+			}
+
+			// Check if there is a stack defined for this error to add it
+			if (error.stack) {
+				result += error.stack;
+			} else {
+				result += error.name + ': ' + error.message;
+			}
 		} else {
-			result = 'An error occured, enable debug mode for expanded result';
+			result += 'enable debug mode for expanded result';
 		}
 
 		return result;
 	};
 
+	// Normalize location path to be used in the internal cache
 	simplet.normalizePath = function (location, extension) {
 
 		var isAbsolute = (location[0] === '/'),
@@ -231,6 +247,8 @@ var simplet = function (options) {
 				// Stingify non-string arguments and concatenate all arguments
 				if (typeof arguments[index] === 'string') {
 					result += arguments[index];
+				} else if (arguments[index] === undefined) {
+					result += '';
 				} else {
 					result += JSON.stringify(arguments[index]);
 				}
@@ -252,6 +270,8 @@ var simplet = function (options) {
 				// Stingify non-string arguments and concatenate all arguments
 				if (typeof arguments[index] === 'string') {
 					result += simplet.escapeXML(arguments[index]);
+				} else if (arguments[index] === undefined) {
+					result += '';
 				} else {
 					result += simplet.escapeXML(JSON.stringify(arguments[index]));
 				}
@@ -302,7 +322,7 @@ var simplet = function (options) {
 			try {
 				Function(args, template.compiled).apply(context, values);
 			} catch (error) {
-				result = simplet.catchError(template.original, this.debug, error);
+				result = simplet.catchError(template, this.debug, error);
 			}
 		} else if (this.debug) {
 			result = 'Template "' + source + '" was not found';
@@ -321,7 +341,7 @@ var simplet = function (options) {
 			csize = close.length,
 			current = content[0],
 			index = 0,
-			line = 1,
+			line = 0,
 			open = this.open,
 			osize = open.length,
 			result = '',
@@ -330,7 +350,7 @@ var simplet = function (options) {
 
 		// Add the line index at the beginning for error handling in debug mode
 		if (this.debug) {
-			result += 'var _l_=1;try{';
+			result += 'var _l_=0;try{';
 		}
 
 		// Parse char by char
@@ -350,7 +370,7 @@ var simplet = function (options) {
 				}
 
 				// Add the line index before the code block
-				if (this.debug && line > 1) {
+				if (this.debug && line > 0) {
 					result += '_l_=' + line + ';';
 				}
 
@@ -405,7 +425,7 @@ var simplet = function (options) {
 					current = content[index];
 				}
 
-				// Trim redundant whitespace
+				// Remove redundant whitespace
 				result += buffer.trim();
 
 				// Close current statement
@@ -463,12 +483,12 @@ var simplet = function (options) {
 			buffer = '';
 		}
 
-		// Remove any redundant whitespace in the beginning or the end of the result
+		// Remove redundant whitespace
 		result = result.trim();
 
 		// Add the ending for the error handling in debug mode
 		if (this.debug) {
-			result += '}catch(e){throw{line:_l_,message:e.message,name:e.name}}';
+			result += '}catch(e){e.line=_l_;throw e}';
 		}
 
 		// Normalize location
@@ -477,6 +497,7 @@ var simplet = function (options) {
 		// Save the original and the compiled content of the template
 		this.container[location] = {
 			compiled: result,
+			location: location,
 			original: content.split(/\r\n|\n|\r|\u2028|\u2029/)
 		};
 	};

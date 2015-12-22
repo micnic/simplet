@@ -1,6 +1,6 @@
 <img src="https://raw.github.com/micnic/simpleT/master/logo.png"/>
 
-# 0.2.0
+# 0.2.1
 
 simpleT is a simple template engine for Node.JS and web browsers that has some special features:
 
